@@ -177,7 +177,7 @@ public class Server
 				else if (commande.equals("ls")) {
 					File f = new File(System.getProperty("user.dir"));
 					File[] listOfFiles = f.listFiles();
-					out.write(listOfFiles.length);
+					out.write(listOfFiles.length);				
 					for (int i = 0; i < listOfFiles.length; i++) {
 					  if (listOfFiles[i].isFile()) {
 					    out.writeUTF("[File] " + listOfFiles[i].getName());
@@ -198,7 +198,7 @@ public class Server
 					else {
 						String nomDossier = commande.substring(3);
 						String path = f.getAbsolutePath();
-						System.setProperty("user.dir", path + "\\" + nomDossier);
+						System.setProperty("user.dir", path + File.separator + nomDossier);
 						out.writeUTF("Vous êtes dans le dossier " + nomDossier);
 					}
 					afficherCommande(socket, commande);
