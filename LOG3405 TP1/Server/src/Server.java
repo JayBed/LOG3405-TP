@@ -1,16 +1,17 @@
-import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.file.FileSystems;
-import java.nio.file.Path;
 import java.util.Scanner;
+
 
 public class Server 
 {
@@ -24,6 +25,7 @@ public class Server
 	
  public static void main (String[] args) throws IOException 
  {
+	 
 	 int clientNumber =0;
 
 	 Scanner scannerPort = new Scanner(System.in);
@@ -36,7 +38,7 @@ public class Server
 		{
 			System.out.println("Entrez un numero de port entre 5000 et 5050");
 			serverPort = Integer.parseInt(scannerPort.nextLine());
-			if (serverPort > 5000 && serverPort < 5050)
+			if (serverPort >= 5000 && serverPort <= 5050)
 				break;
 		}
 	 
@@ -76,6 +78,7 @@ public class Server
  {
 	 private Socket socket;
 	 private int clientNumber;
+	 final int TAILLE_BUFFER = 8024;
 	 
 	 public ClientHandler (Socket socket, int clientNumber)
 	 {
@@ -84,8 +87,7 @@ public class Server
 		 System.out.println("New connection with client#"+ clientNumber + " at " + socket);
 	 }
 	 
-	 @Override
-	public void run()
+	 public void run()
 	 {
 		 try
 		 {
@@ -98,10 +100,12 @@ public class Server
 				DataInputStream in = new DataInputStream(socket.getInputStream());
 				String commande = in.readUTF();
 				
-				if (commande == "exit") {
+				if (commande == "exit") 
+				{
 					boucleCommandes = false;
 				}
-				else if (commande.contains("mkdir")) {
+				
+				else if (commande.startsWith("mkdir")) {
 					String nomFichier = commande.substring(6);
 					File file = new File(System.getProperty("user.dir")+"\\"+nomFichier);
 					if (file.mkdir()) {
@@ -111,6 +115,41 @@ public class Server
 					else
 						out.writeUTF("Le dossier existe deja");
 				}
+				
+				
+				else if (commande.startsWith("upload"))
+				{
+					InputStream inFichier = socket.getInputStream();
+					String nomFichier = commande.substring(7);
+					OutputStream outFichier = new FileOutputStream(nomFichier);
+					byte[] buffer = new byte[16*1024];
+
+			        int count;
+			        while ((count = inFichier.read(buffer)) > 0) {
+			            outFichier.write(buffer, 0, count);
+			        }
+			        
+			        outFichier.flush();
+				}
+				
+				else if (commande.startsWith("download"))
+				{
+					String nomFichier = commande.substring(9);
+
+					File fichier = new File(nomFichier);
+				    long length = fichier.length();
+				    byte[] buffer = new byte[16 * 1024];
+				    InputStream inFichier = new FileInputStream(fichier);
+				    OutputStream outFichier = socket.getOutputStream();
+				        
+				    int count;
+				    while ((count = inFichier.read(buffer)) > 0) {
+				        outFichier.write(buffer, 0, count);
+				     }
+				    
+				   outFichier.flush();
+				}
+				
 				else if (commande.equals("ls")) {
 					File f = new File(System.getProperty("user.dir"));
 					File[] listOfFiles = f.listFiles();
@@ -123,6 +162,7 @@ public class Server
 					  }
 					}
 				}
+				
 				else if (commande.startsWith("cd")) {
 					File f = new File(System.getProperty("user.dir"));
 					if(commande.contains("...")) {
@@ -137,6 +177,7 @@ public class Server
 						out.writeUTF("Vous êtes dans le dossier " + nomDossier);
 					}
 				}
+				
 			}
 		
 			 
