@@ -11,8 +11,9 @@ import java.util.Scanner;
 
 public class Client {
 	private static Socket socket;
+	 final static int TAILLE_BUFFER = 4*1024;
 	
-	public static boolean validateIPAddress(final String ip) { //Source du code de cette fonction : https://stackoverflow.com/a/30691451
+	public static boolean validerIPAdresse(final String ip) { //Source du code de cette fonction : https://stackoverflow.com/a/30691451
 		   String PATTERN = "^((0|1\\d?\\d?|2[0-4]?\\d?|25[0-5]?|[3-9]\\d?)\\.){3}(0|1\\d?\\d?|2[0-4]?\\d?|25[0-5]?|[3-9]\\d?)$";
 		   return ip.matches(PATTERN);
 	}
@@ -38,7 +39,7 @@ public class Client {
 			{
 				System.out.println("Entrez une adresse IP valide");
 				serverAddress = scannerAddress.nextLine();
-				if (validateIPAddress(serverAddress))
+				if (validerIPAdresse(serverAddress))
 					break;
 			}
 		
@@ -72,35 +73,45 @@ public class Client {
 			{
 				String nomFichier = commande.substring(7);
 				out.writeUTF(commande);
-
+				
+				int bytes =0;
+			
 				File fichier = new File(nomFichier);
-			    long length = fichier.length();
-			    byte[] buffer = new byte[16 * 1024];
-			    InputStream inFichier = new FileInputStream(fichier);
-			    OutputStream outFichier = socket.getOutputStream();
-			        
-			    int count;
-			    while ((count = inFichier.read(buffer)) > 0) {
-			        outFichier.write(buffer, 0, count);
-			     }
+				FileInputStream fileInput = new FileInputStream(fichier);
+				
+				out.writeLong(fichier.length());
+				
+				//Separe le fichier en  morceaux
+			    byte[] buffer = new byte[TAILLE_BUFFER];
 			    
-
-			   
+			    while ((bytes=fileInput.read(buffer))!=-1){
+		            out.write(buffer,0,bytes);
+		            out.flush();
+		        }
+			    
+			    fileInput.close();
+			    System.out.println(in.readUTF());
+			    
 			}	
 			
 			else if (commande.startsWith("download"))
 			{
-				out.writeUTF(commande);
-				InputStream inFichier = socket.getInputStream();
+				int bytes =0;
 				String nomFichier = commande.substring(9);
-				OutputStream outFichier = new FileOutputStream(nomFichier);
-				byte[] buffer = new byte[16*1024];
-
-		        int count;
-		        while ((count = inFichier.read(buffer)) > 0) {
-		            outFichier.write(buffer, 0, count);
-		        }
-		        outFichier.flush();
+				FileOutputStream fileOutput = new FileOutputStream(nomFichier);
+				
+				out.writeUTF(commande);
+				
+				long tailleFichier = in.readLong();
+		        
+				 byte[] buffer = new byte[TAILLE_BUFFER];
+			        while (tailleFichier > 0 && (bytes = in.read(buffer, 0, (int)Math.min(buffer.length, tailleFichier))) != -1) {
+			            fileOutput.write(buffer,0,bytes);
+			            tailleFichier -= bytes;     
+			        }
+			        
+			        fileOutput.close();
+			        System.out.println(in.readUTF());
 			}
 			
 			else if (commande.equals("ls"))
@@ -120,6 +131,7 @@ public class Client {
 			
 		}
 		socket.close();
+		System.out.println("Vous avez été déconnecté avec succès");
 			
 	 }	
 }

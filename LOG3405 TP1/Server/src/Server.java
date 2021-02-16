@@ -18,10 +18,17 @@ public class Server
 	private static ServerSocket listener;
 	
 	
-	public static boolean validateIPAddress(final String ip) { //Source du code de cette fonction : https://stackoverflow.com/a/30691451
+	public static boolean validerIPAdresse(final String ip) { //Source du code de cette fonction : https://stackoverflow.com/a/30691451
 		   String PATTERN = "^((0|1\\d?\\d?|2[0-4]?\\d?|25[0-5]?|[3-9]\\d?)\\.){3}(0|1\\d?\\d?|2[0-4]?\\d?|25[0-5]?|[3-9]\\d?)$";
 		   return ip.matches(PATTERN);
 	}
+	
+	public static void afficherCommande(Socket socket, String commande) {
+		System.out.println("[" + socket.getInetAddress().toString().substring(1) + ":"
+				+ socket.getPort() + "-" + java.time.LocalDate.now().toString() + "@"
+		+ java.time.LocalTime.now() + "]: " + commande );
+	}
+	
 	
  public static void main (String[] args) throws IOException 
  {
@@ -47,7 +54,7 @@ public class Server
 		{
 			System.out.println("Entrez une adresse IP valide");
 			serverAddress = scannerAddress.nextLine();
-			if (validateIPAddress(serverAddress))
+			if (validerIPAdresse(serverAddress))
 				break;
 		}
 
@@ -71,6 +78,7 @@ public class Server
 	 	listener.close();
 	 }
  
+	
  }
 	 
 	  
@@ -78,13 +86,15 @@ public class Server
  {
 	 private Socket socket;
 	 private int clientNumber;
-	 final int TAILLE_BUFFER = 8024;
+	 final int TAILLE_BUFFER = 4*1024;
 	 
 	 public ClientHandler (Socket socket, int clientNumber)
 	 {
 		 this.socket = socket;
 		 this.clientNumber = clientNumber;
 		 System.out.println("New connection with client#"+ clientNumber + " at " + socket);
+		 
+
 	 }
 	 
 	 public void run()
@@ -100,8 +110,9 @@ public class Server
 				DataInputStream in = new DataInputStream(socket.getInputStream());
 				String commande = in.readUTF();
 				
-				if (commande == "exit") 
+				if (commande.equals("exit"))
 				{
+					afficherCommande(socket, commande);
 					boucleCommandes = false;
 				}
 				
@@ -114,40 +125,53 @@ public class Server
 					}
 					else
 						out.writeUTF("Le dossier existe deja");
+					
+					afficherCommande(socket, commande);
 				}
 				
 				
 				else if (commande.startsWith("upload"))
 				{
-					InputStream inFichier = socket.getInputStream();
+					int bytes =0;
 					String nomFichier = commande.substring(7);
-					OutputStream outFichier = new FileOutputStream(nomFichier);
-					byte[] buffer = new byte[16*1024];
-
-			        int count;
-			        while ((count = inFichier.read(buffer)) > 0) {
-			            outFichier.write(buffer, 0, count);
-			        }
+					//La ligne suivante permet d'upload un fichier dans le repertoire courant
+					FileOutputStream fileOutput = new FileOutputStream(System.getProperty("user.dir")+"\\"+nomFichier);
+					
+					long tailleFichier = in.readLong();
 			        
-			        outFichier.flush();
+					 byte[] buffer = new byte[TAILLE_BUFFER];
+				        while (tailleFichier > 0 && (bytes = in.read(buffer, 0, (int)Math.min(buffer.length, tailleFichier))) != -1) {
+				            fileOutput.write(buffer,0,bytes);
+				            tailleFichier -= bytes;     
+				        }
+				        
+				        fileOutput.close();
+				        afficherCommande(socket, commande);
+				        out.writeUTF("Le fichier " + nomFichier + " a bien ete televerse");
 				}
 				
 				else if (commande.startsWith("download"))
 				{
 					String nomFichier = commande.substring(9);
-
+					
+					int bytes =0;
+				
 					File fichier = new File(nomFichier);
-				    long length = fichier.length();
-				    byte[] buffer = new byte[16 * 1024];
-				    InputStream inFichier = new FileInputStream(fichier);
-				    OutputStream outFichier = socket.getOutputStream();
-				        
-				    int count;
-				    while ((count = inFichier.read(buffer)) > 0) {
-				        outFichier.write(buffer, 0, count);
-				     }
+					FileInputStream fileInput = new FileInputStream(fichier);
+					
+					out.writeLong(fichier.length());
+					
+					//Separe le fichier en  morceaux
+				    byte[] buffer = new byte[TAILLE_BUFFER];
 				    
-				   outFichier.flush();
+				    while ((bytes=fileInput.read(buffer))!=-1){
+			            out.write(buffer,0,bytes);
+			            out.flush();
+			        }
+				    
+				    fileInput.close();
+				    afficherCommande(socket, commande);
+				    out.writeUTF("Le fichier " + nomFichier + " a bien ete telecharge");
 				}
 				
 				else if (commande.equals("ls")) {
@@ -161,6 +185,7 @@ public class Server
 					    out.writeUTF("[Folder] " + listOfFiles[i].getName());
 					  }
 					}
+					afficherCommande(socket, commande);
 				}
 				
 				else if (commande.startsWith("cd")) {
@@ -176,6 +201,7 @@ public class Server
 						System.setProperty("user.dir", path + "\\" + nomDossier);
 						out.writeUTF("Vous êtes dans le dossier " + nomDossier);
 					}
+					afficherCommande(socket, commande);
 				}
 				
 			}
@@ -183,7 +209,7 @@ public class Server
 			 
 		 } catch (IOException e)
 		 {
-			 System.out.println("Error handling client#" + clientNumber + ": " + e);
+			 System.out.println("Erreur avec le client#" + clientNumber + ": " + e);
 		 }
 		 
 		 
@@ -195,10 +221,10 @@ public class Server
 			 }
 			 catch (IOException e)
 			 {
-				 System.out.println("Couldn't close a socket");
+				 System.out.println("Pas capable de fermer le socket");
 				
 			 }
-			 System.out.println("Connection with client closed");
+			 System.out.println("Connection avec le client#" + clientNumber + " ferme");
 		 }
 		  
 	 	}
