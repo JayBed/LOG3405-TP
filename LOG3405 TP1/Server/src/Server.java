@@ -190,7 +190,7 @@ public class Server
 				
 				else if (commande.startsWith("cd")) {
 					File f = new File(System.getProperty("user.dir"));
-					if(commande.contains("...")) {
+					if(commande.contains("..")) {
 						System.setProperty("user.dir", f.getParent());
 						File f2 = new File(System.getProperty("user.dir"));
 						out.writeUTF("Vous êtes dans le dossier " + f2.getName());
