@@ -4,8 +4,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.Socket;
 import java.util.Scanner;
 
@@ -131,6 +129,9 @@ public class Client {
 			
 		}
 		socket.close();
+		commandeScanner.close();
+		scannerAddress.close();
+		scannerPort.close();
 		System.out.println("Vous avez été déconnecté avec succès");
 			
 	 }	
